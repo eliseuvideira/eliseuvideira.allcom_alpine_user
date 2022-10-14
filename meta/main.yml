@@ -1,7 +1,7 @@
 galaxy_info:
-  role_name: allcom_alpine
+  role_name: allcom_alpine_user
   author: Eliseu Videira
-  description: Setup AllCom Alpine Server
+  description: Setup AllCom Alpine User
   company: AllCom Sistemas
   license: MIT
   min_ansible_version: "2.1"
