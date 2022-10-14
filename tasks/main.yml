@@ -1,0 +1,116 @@
+---
+- name: Create Group 'wheel'
+  group:
+    name: wheel
+    state: present
+
+- name: Allow 'wheel' to have sudo privileges
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^# %wheel ALL=\(ALL\) NOPASSWD: ALL'
+    line: "%wheel ALL=(ALL) NOPASSWD: ALL"
+    validate: "/usr/sbin/visudo -cf %s"
+
+- name: Create User
+  user:
+    name: "{{ allcom_alpine_user__username }}"
+    shell: /bin/zsh
+    groups: wheel,docker
+    append: true
+    generate_ssh_key: true
+  register: create_user
+
+- name: Unlock User
+  shell: |
+    #/bin/sh
+    passwd -d "{{ allcom_alpine_user__username }}"
+  when: create_user.changed
+
+- name: Ensure .ssh exists
+  file:
+    path: "/home/{{ allcom_alpine_user__username }}/.ssh"
+    state: directory
+    owner: "{{ allcom_alpine_user__username }}"
+    group: "{{ allcom_alpine_user__username }}"
+    mode: "0700"
+
+- name: Copy `authorized_keys`
+  copy:
+    content: "{{ allcom_alpine_user__authorized_keys }}"
+    dest: "/home/{{ allcom_alpine_user__username }}/.ssh/authorized_keys"
+    owner: "{{ allcom_alpine_user__username }}"
+    group: "{{ allcom_alpine_user__username }}"
+    mode: "0600"
+
+- name: Configure `sshd`
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "#PasswordAuthentication yes"
+    line: PasswordAuthentication no
+  register: configure_sshd
+
+- name: Restart `sshd`
+  service:
+    name: sshd
+    state: restarted
+  when: configure_sshd.changed
+
+- name: Clone and Update .dotfiles
+  become: true
+  become_user: "{{ allcom_alpine_user__username }}"
+  git:
+    repo: https://github.com/eliseuvideira/.dotfiles-alpine
+    dest: "/home/{{ allcom_alpine_user__username }}/.dotfiles"
+  register: clone_and_update_dotfiles
+
+- name: Install .dotfiles
+  become: true
+  become_user: "{{ allcom_alpine_user__username }}"
+  shell: |
+    #!/bin/sh
+    cd ~/.dotfiles && make install
+  when: clone_and_update_dotfiles.changed
+
+- name: Configure ssh_keys public
+  copy:
+    content: "{{ allcom_alpine_user__git_ssh_key_public }}"
+    dest: "/home/{{ allcom_alpine_user__username }}/.ssh/git_server_key.pub"
+    owner: "{{ allcom_alpine_user__username }}"
+    group: "{{ allcom_alpine_user__username }}"
+    mode: "0644"
+
+- name: Configure ssh_keys private
+  copy:
+    content: "{{ allcom_alpine_user__git_ssh_key_private }}"
+    dest: "/home/{{ allcom_alpine_user__username }}/.ssh/git_server_key"
+    owner: "{{ allcom_alpine_user__username }}"
+    group: "{{ allcom_alpine_user__username }}"
+    mode: "0600"
+
+- name: Configure ssh config
+  copy:
+    content: |
+      Host git.allcom.dev
+        IdentityFile ~/.ssh/git_server_key
+        Port 8022
+    dest: "/home/{{ allcom_alpine_user__username }}/.ssh/config"
+    owner: "{{ allcom_alpine_user__username }}"
+    group: "{{ allcom_alpine_user__username }}"
+    mode: "0644"
+
+- name: Ensure .docker exists
+  file:
+    path: "/home/{{ allcom_alpine_user__username }}/.docker"
+    state: directory
+    owner: "{{ allcom_alpine_user__username }}"
+    group: "{{ allcom_alpine_user__username }}"
+    mode: "0700"
+
+- name: Configure registry keys
+  copy:
+    content: "{{ allcom_alpine_user__registry_server_key }}"
+    dest: "/home/{{ allcom_alpine_user__username }}/.docker/config.json"
+    owner: "{{ allcom_alpine_user__username }}"
+    group: "{{ allcom_alpine_user__username }}"
+    mode: "0600"
