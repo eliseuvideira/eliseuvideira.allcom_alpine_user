@@ -11,6 +11,7 @@ It should work on any latest alpine distribution
 | Variable                                  | Required | Default | Choices | Comments                   |
 | ----------------------------------------- | -------- | ------- | ------- | -------------------------- |
 | allcom_alpine_user\_\_username            | no       | allcom  |         | username                   |
+| allcom_alpine_user\_\_authorized_keys     | yes      |         |         | authorized keys file       |
 | allcom_alpine_user\_\_git_ssh_key_public  | yes      |         |         | git server public ssh key  |
 | allcom_alpine_user\_\_git_ssh_key_private | yes      |         |         | git server private ssh key |
 | allcom_alpine_user\_\_registry_server_key | yes      |         |         | registry server json key   |
